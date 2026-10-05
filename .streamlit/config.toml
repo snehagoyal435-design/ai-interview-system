@@ -1,0 +1,30 @@
+# ============================================
+# Streamlit Theme Configuration
+# ============================================
+
+[theme]
+# Primary color — buttons, links, highlights
+primaryColor = "#6366f1"
+
+# Background color
+backgroundColor = "#ffffff"
+
+# Secondary background (sidebar, cards)
+secondaryBackgroundColor = "#f8fafc"
+
+# Text color
+textColor = "#1e293b"
+
+# Font family
+font = "sans serif"
+
+[server]
+# Auto reload on file change
+runOnSave = true
+
+# Max upload size (resume PDFs ke liye)
+maxUploadSize = 10
+
+[browser]
+# Browser tab title
+gatherUsageStats = false

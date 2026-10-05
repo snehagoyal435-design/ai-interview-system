@@ -1,0 +1,22 @@
+# ---- Environment ----
+.env
+venv/
+__pycache__/
+*.pyc
+
+# ---- Database ----
+*.db
+*.sqlite3
+
+# ---- Uploads / Reports ----
+uploads/*
+reports/*
+!uploads/.gitkeep
+!reports/.gitkeep
+
+# ---- VS Code ----
+.vscode/
+
+# ---- OS ----
+.DS_Store
+Thumbs.db 
