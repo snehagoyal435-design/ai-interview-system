@@ -11,7 +11,7 @@ import pandas as pd
 import base64
 
 
-API_URL = "http://localhost:8000"
+API_URL = "https://khushi-ai-interview-api.onrender.com"
 
 st.set_page_config(
     page_title="AI Interview System - Khushi Goyal",
