@@ -378,9 +378,9 @@ def api_call(method, endpoint, **kwargs):
     headers = get_headers()
     try:
         if method == "GET":
-            r = requests.get(url, headers=headers, timeout=60, **kwargs)
+            r = requests.get(url, headers=headers, timeout=180, **kwargs)
         else:
-            r = requests.post(url, headers=headers, timeout=60, **kwargs)
+            r = requests.post(url, headers=headers, timeout=180, **kwargs)
 
         if r.status_code == 401:
             st.session_state.token = None
@@ -490,7 +490,7 @@ def show_login():
                 if email and pwd:
                     with st.spinner("Logging in..."):
                         r = requests.post(f"{API_URL}/auth/login",
-                                          data={"username": email, "password": pwd}, timeout=30)
+                                          data={"username": email, "password": pwd}, timeout=120)
                     if r.status_code == 200:
                         st.session_state.token = r.json()["access_token"]
                         me = api_call("GET", "/auth/me")
@@ -519,7 +519,7 @@ def show_login():
                         r = requests.post(f"{API_URL}/auth/signup", json={
                             "email": email2, "password": pwd2,
                             "full_name": name, "role": role
-                        }, timeout=30)
+                        }, timeout=120)
                     if r.status_code == 201:
                         st.success("Account created! Please log in.")
                     else:
@@ -977,7 +977,7 @@ def show_start_interview():
                                                headers=get_headers(),
                                                json={"text": q['question_text'],
                                                      "filename": f"q_{qid}.mp3"},
-                                               timeout=60)
+                                               timeout=180)
                             if rr.status_code == 200:
                                 st.audio(rr.content, format="audio/mp3")
                             else:
@@ -1156,7 +1156,7 @@ def show_my_interviews():
             if st.button("Get PDF Report", key=f"p_{iv['id']}", use_container_width=True):
                 try:
                     rr = requests.get(f"{API_URL}/interviews/{iv['id']}/report",
-                                      headers=get_headers(), timeout=60)
+                                      headers=get_headers(), timeout=180)
                     if rr.status_code == 200:
                         st.session_state[f"pdf_{iv['id']}"] = rr.content
                         st.rerun()
