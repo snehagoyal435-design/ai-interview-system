@@ -14,7 +14,7 @@ import base64
 API_URL = "https://khushi-ai-interview-api.onrender.com"
 
 st.set_page_config(
-    page_title="AI Interview System - Khushi Goyal",
+    page_title="AI Interview System - Khushi Goyal,Sadhna",
     page_icon="🎤",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -442,7 +442,7 @@ def show_login():
         <div class="hero-badge">Powered by Google Gemini AI</div>
         <div class="hero-title">AI Interview System</div>
         <div class="hero-subtitle">Land your dream job with AI-powered mock interviews</div>
-        <div class="hero-brand">Crafted by Khushi Goyal</div>
+        <div class="hero-brand">Crafted by Khushi Goyal, Sadhna • MCA • 2025-2027</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -540,7 +540,7 @@ def show_profile_setup():
         <div class="hero-badge">Welcome</div>
         <div class="hero-title">Set Up Your Profile</div>
         <div class="hero-subtitle">Tell us about yourself — this personalizes your interviews</div>
-        <div class="hero-brand">AI Interview System — by Khushi Goyal</div>
+        <div class="hero-brand">AI Interview System — Crafted by Khushi Goyal, Sadhna • MCA • 2025-2027</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -599,7 +599,7 @@ def show_sidebar():
         <div style="text-align: center; padding: 15px 0;">
             <div style="font-size: 3.5em;">🎤</div>
             <div style="font-size: 1.35em; font-weight: 800;">AI Interview</div>
-            <div style="font-size: 0.7em; opacity: 0.6; letter-spacing: 2px;">BY KHUSHI GOYAL</div>
+            <div style="font-size: 0.7em; opacity: 0.6; letter-spacing: 2px;">Crafted by Khushi Goyal, Sadhna • MCA • 2025-2027</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -652,7 +652,7 @@ def show_sidebar():
 
         st.markdown("""
         <div style="text-align: center; padding: 20px 0; font-size: 0.7em; opacity: 0.5;">
-            v2.0 • by Khushi Goyal
+            v2.0 • Crafted by Khushi Goyal, Sadhna • MCA • 2025-2027
         </div>
         """, unsafe_allow_html=True)
 
