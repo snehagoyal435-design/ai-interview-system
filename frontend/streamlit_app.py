@@ -999,33 +999,71 @@ def show_start_interview():
                                        placeholder="Type your answer here...",
                                        label_visibility="collapsed")
             else:
-                st.markdown("**Record your answer on your phone and upload the audio file.**")
+                
+                st.markdown("### 🎤 Voice Input")
+                st.info("📱 Record on your phone → send to computer → upload here")
                 st.caption("Supported formats: .m4a, .mp3, .wav, .ogg")
-                audio_file = st.file_uploader("Upload audio file",
-                                               type=["m4a", "mp3", "wav", "ogg"],
-                                               key=f"audio_{qid}")
-                if audio_file:
-                    if st.button("Transcribe Audio", key=f"trans_{qid}", use_container_width=True):
-                        with st.spinner("Transcribing your voice..."):
-                            try:
-                                files = {"file": (audio_file.name, audio_file.getvalue(), "audio/mpeg")}
-                                rr = requests.post(f"{API_URL}/speech/transcribe",
-                                                   headers=get_headers(),
-                                                   files=files, timeout=180)
-                                if rr.status_code == 200:
-                                    transcribed = rr.json().get("text", "")
-                                    st.session_state[f"ans_{qid}"] = transcribed
-                                    st.success("Transcription complete!")
-                                    st.rerun()
-                                else:
-                                    st.error(f"Transcription failed: {rr.json().get('detail', '')}")
-                            except Exception as e:
-                                st.error(f"Error: {e}")
-
-                answer = st.text_area("Edit transcribed text (optional)",
-                                       height=120, key=f"ans_{qid}",
-                                       placeholder="Transcribed text appears here...",
-                                       label_visibility="collapsed")
+                
+                audio_file = st.file_uploader(
+                    "Choose audio file",
+                    type=["m4a", "mp3", "wav", "ogg"],
+                    key=f"audio_{qid}",
+                    help="Click 'Browse files' and select your audio"
+                )
+                
+                if audio_file is not None:
+                    st.success(f"✅ File selected: **{audio_file.name}** ({audio_file.size / 1024:.1f} KB)")
+                    st.audio(audio_file, format="audio/mp3")
+                    
+                    col_a, col_b = st.columns(2)
+                    with col_a:
+                        if st.button("🎯 Transcribe & Auto-Fill", key=f"trans_{qid}", use_container_width=True):
+                            with st.spinner("🎧 Transcribing your voice... (10-20 sec)"):
+                                try:
+                                    files = {
+                                        "file": (audio_file.name, audio_file.getvalue(), audio_file.type or "audio/mpeg")
+                                    }
+                                    rr = requests.post(
+                                        f"{API_URL}/speech/transcribe",
+                                        headers=get_headers(),
+                                        files=files,
+                                        timeout=180
+                                    )
+                                    if rr.status_code == 200:
+                                        data = rr.json()
+                                        transcribed = data.get("text", "")
+                                        if transcribed.strip():
+                                            st.session_state[f"ans_{qid}"] = transcribed
+                                            st.success(f"✅ Transcribed! ({len(transcribed)} chars)")
+                                            st.rerun()
+                                        else:
+                                            st.warning("No speech detected in the audio.")
+                                    elif rr.status_code == 503:
+                                        st.warning("⚠️ Speech-to-text is not available on the cloud server.")
+                                        st.info("💡 Please type your answer manually below.")
+                                    else:
+                                        detail = "Unknown error"
+                                        try:
+                                            detail = rr.json().get("detail", detail)
+                                        except:
+                                            pass
+                                        st.error(f"❌ Transcription failed: {detail}")
+                                except requests.exceptions.Timeout:
+                                    st.error("❌ Request timed out. Server might be busy — try again.")
+                                except Exception as e:
+                                    st.error(f"❌ Error: {str(e)}")
+                    
+                    with col_b:
+                        if st.button("🗑️ Remove File", key=f"rm_{qid}", use_container_width=True):
+                            st.rerun()
+                
+                answer = st.text_area(
+                    "Your answer (edit or type here)",
+                    height=150,
+                    key=f"ans_{qid}",
+                    placeholder="Transcribed text will appear here, or type manually...",
+                    label_visibility="collapsed"
+                )
 
             c1, c2 = st.columns([2, 1])
             with c1:

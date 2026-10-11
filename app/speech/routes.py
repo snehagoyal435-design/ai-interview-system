@@ -95,3 +95,4 @@ async def transcribe(
         "text": result["text"],
         "language": result.get("language", "unknown"),
     }
+    
