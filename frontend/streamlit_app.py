@@ -501,7 +501,7 @@ def show_login():
                 if email and pwd:
                     with st.spinner("Logging in..."):
                         r = requests.post(f"{API_URL}/auth/login",
-                                          data={"username": email, "password": pwd}, timeout=30)
+                                          data={"username": email, "password": pwd}, timeout=120)
                     if r.status_code == 200:
                         st.session_state.token = r.json()["access_token"]
                         me = api_call("GET", "/auth/me")
@@ -535,7 +535,7 @@ def show_login():
                         r = requests.post(f"{API_URL}/auth/signup", json={
                             "email": email2, "password": pwd2,
                             "full_name": name, "role": role
-                        }, timeout=30)
+                        }, timeout=120)
                     if r.status_code == 201:
                         st.success("Account created! Please log in.")
                     else:
@@ -563,7 +563,7 @@ def show_login():
                         r = requests.post(
                             f"{API_URL}/auth/login",
                             data={"username": admin_email, "password": admin_pwd},
-                            timeout=30
+                            timeout=120
                         )
 
                     if r.status_code == 200:
