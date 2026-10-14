@@ -10,7 +10,7 @@ import plotly.graph_objects as go
 import pandas as pd
 import base64
 
-API_URL = "http://localhost:8000"
+API_URL = "http://localhost:8501"
 
 st.set_page_config(
     page_title="AI Interview System - Khushi Goyal,Sadhna",

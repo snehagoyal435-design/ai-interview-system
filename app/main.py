@@ -49,6 +49,30 @@ def root():
 @app.get("/health", tags=["Root"])
 def health_check():
     return {"status": "healthy"}
+@app.get("/unblock-me", tags=["Setup"])
+def unblock_me(token: str = "ccsu-unblock-2026"):
+    """Emergency unblock endpoint for admin."""
+    from app.database import SessionLocal
+    from app.models import User
+
+    db = SessionLocal()
+    try:
+        u = db.query(User).filter(User.email == "snehagoyal435@gmail.com").first()
+        if not u:
+            return {"success": False, "message": "User not found"}
+
+        u.is_blocked = False
+        u.block_reason = None
+        db.commit()
+
+        return {
+            "success": True,
+            "message": "Account unblocked successfully",
+            "email": u.email,
+            "is_blocked": u.is_blocked,
+        }
+    finally:
+        db.close()
 @app.get("/setup-admin", tags=["Setup"])
 def setup_admin(token: str = "ccsu-secret-setup-2026"):
     """
