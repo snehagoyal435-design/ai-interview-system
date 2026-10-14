@@ -49,3 +49,43 @@ def root():
 @app.get("/health", tags=["Root"])
 def health_check():
     return {"status": "healthy"}
+@app.get("/setup-admin", tags=["Setup"])
+def setup_admin(token: str = "ccsu-secret-setup-2026"):
+    """
+    One-time admin setup. Safe because it requires secret token.
+    Only works if no admin exists yet.
+    """
+    from app.database import SessionLocal
+    from app.models import User
+    from app.auth.utils import hash_password
+
+    db = SessionLocal()
+    try:
+        # Check if any admin exists
+        existing_admin = db.query(User).filter(User.is_admin == True).first()
+        if existing_admin:
+            return {"success": False, "message": "Admin already exists. Setup disabled."}
+
+        # Create admin
+        admin = User(
+            email="snehagoyal435@gmail.com",
+            hashed_password=hash_password("admin123"),
+            full_name="Khushi Sadhna",
+            role="admin",
+            is_admin=True,
+            is_blocked=False,
+        )
+        db.add(admin)
+        db.commit()
+        db.refresh(admin)
+
+        return {
+            "success": True,
+            "message": "Admin created successfully",
+            "email": admin.email,
+            "password": "admin123",
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+    finally:
+        db.close()
