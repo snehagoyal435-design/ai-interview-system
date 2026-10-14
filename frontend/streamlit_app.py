@@ -10,8 +10,7 @@ import plotly.graph_objects as go
 import pandas as pd
 import base64
 
-
-API_URL = "https://khushi-ai-interview-api.onrender.com"
+API_URL = "http://localhost:8000"
 
 st.set_page_config(
     page_title="AI Interview System - Khushi Goyal,Sadhna",
@@ -439,13 +438,16 @@ def is_admin():
 # LOGIN PAGE
 # ============================================
 
+
+
 def show_login():
-    st.markdown("""
-    <div class="hero">
-        <div class="hero-badge">Powered by Google Gemini AI</div>
+    st.markdown(f"""
+    <div class="hero" style="position: relative;">
+        <img src="{CCSU_LOGO}" style="width: 100px; height: 100px; object-fit: contain; margin-bottom: 20px; border-radius: 16px; background: white; padding: 8px; box-shadow: 0 8px 30px rgba(0,0,0,0.3);" />
+        <div class="hero-badge">Chaudhary Charan Singh University, Meerut</div>
         <div class="hero-title">AI Interview System</div>
         <div class="hero-subtitle">Land your dream job with AI-powered mock interviews</div>
-        <div class="hero-brand">Crafted by Khushi Goyal, Sadhna • MCA • 2025-2027</div>
+        <div class="hero-brand">Crafted by Khushi Sadhna • MCA • Batch 2025-2027</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -477,12 +479,18 @@ def show_login():
 
     st.markdown("<br>", unsafe_allow_html=True)
 
+    # ============================================
+    # 3 TABS: Login / Signup / Admin
+    # ============================================
     col1, col2, col3 = st.columns([1, 1.3, 1])
     with col2:
         st.markdown('<div class="card">', unsafe_allow_html=True)
 
-        tab1, tab2 = st.tabs(["Login", "Sign Up"])
+        tab1, tab2, tab3 = st.tabs(["🔐 Login", "📝 Sign Up", "🛡️ Admin"])
 
+        # ============================================
+        # TAB 1: LOGIN
+        # ============================================
         with tab1:
             with st.form("login_form"):
                 email = st.text_input("Email", placeholder="you@example.com")
@@ -493,7 +501,7 @@ def show_login():
                 if email and pwd:
                     with st.spinner("Logging in..."):
                         r = requests.post(f"{API_URL}/auth/login",
-                                          data={"username": email, "password": pwd}, timeout=120)
+                                          data={"username": email, "password": pwd}, timeout=30)
                     if r.status_code == 200:
                         st.session_state.token = r.json()["access_token"]
                         me = api_call("GET", "/auth/me")
@@ -503,11 +511,16 @@ def show_login():
                         st.success("Login successful!")
                         time.sleep(0.5)
                         st.rerun()
+                    elif r.status_code == 403:
+                        st.error(f"🚫 Account blocked: {r.json().get('detail', 'Contact admin')}")
                     else:
                         st.error(f"Login failed: {r.json().get('detail', 'Try again')}")
                 else:
                     st.warning("Please enter email and password")
 
+        # ============================================
+        # TAB 2: SIGNUP
+        # ============================================
         with tab2:
             with st.form("signup_form"):
                 name = st.text_input("Full Name", placeholder="John Doe")
@@ -522,7 +535,7 @@ def show_login():
                         r = requests.post(f"{API_URL}/auth/signup", json={
                             "email": email2, "password": pwd2,
                             "full_name": name, "role": role
-                        }, timeout=120)
+                        }, timeout=30)
                     if r.status_code == 201:
                         st.success("Account created! Please log in.")
                     else:
@@ -530,8 +543,52 @@ def show_login():
                 else:
                     st.warning("Fill all fields (password 6+ characters)")
 
-        st.markdown('</div>', unsafe_allow_html=True)
+        # ============================================
+        # TAB 3: ADMIN LOGIN
+        # ============================================
+        with tab3:
+            st.markdown("### 🛡️ Administrator Access")
+            st.caption("Restricted area — authorized personnel only")
 
+            with st.form("admin_login_form"):
+                admin_email = st.text_input("Admin Email", placeholder="admin@ccsu.ac.in", key="admin_email_input")
+                admin_pwd = st.text_input("Admin Password", type="password", placeholder="••••••••", key="admin_pwd_input")
+                admin_submit = st.form_submit_button("🛡️ Login as Admin", use_container_width=True)
+
+            if admin_submit:
+                if not admin_email or not admin_pwd:
+                    st.warning("Please enter admin email and password")
+                else:
+                    with st.spinner("Verifying admin credentials..."):
+                        r = requests.post(
+                            f"{API_URL}/auth/login",
+                            data={"username": admin_email, "password": admin_pwd},
+                            timeout=30
+                        )
+
+                    if r.status_code == 200:
+                        token = r.json()["access_token"]
+                        st.session_state.token = token
+
+                        # Verify user is admin
+                        me = api_call("GET", "/auth/me")
+                        if isinstance(me, dict) and me.get("is_admin"):
+                            st.session_state.user = me
+                            load_profile()
+                            st.success(f"✅ Welcome Admin: {me.get('full_name', 'Admin')}")
+                            time.sleep(0.8)
+                            st.rerun()
+                        else:
+                            # Not admin — clear session
+                            st.session_state.token = None
+                            st.session_state.user = None
+                            st.error("🚫 This account does not have admin privileges")
+                    elif r.status_code == 403:
+                        st.error("🚫 Account is blocked")
+                    else:
+                        st.error(f"Invalid admin credentials: {r.json().get('detail', 'Try again')}")
+
+        st.markdown('</div>', unsafe_allow_html=True)
 
 # ============================================
 # PROFILE SETUP
@@ -1276,7 +1333,208 @@ def show_my_interviews():
                         st.markdown("---")
 
         st.markdown("<br>", unsafe_allow_html=True)
+def show_admin_panel():
+    st.markdown("""
+    <div class="hero">
+        <div class="hero-badge">Administrator</div>
+        <div class="hero-title" style="font-size: 2.3em;">Admin Panel</div>
+        <div class="hero-subtitle">System-wide analytics and user management</div>
+    </div>
+    """, unsafe_allow_html=True)
 
+    # Stats
+    stats = api_call("GET", "/admin/stats")
+    if not isinstance(stats, dict) or stats.get("error"):
+        st.error("Failed to load stats")
+        return
+
+    c1, c2, c3, c4, c5 = st.columns(5)
+    with c1:
+        st.markdown(f"""
+        <div class="stat-card"><div class="stat-icon">👥</div>
+        <div class="stat-value">{stats.get('total_users', 0)}</div>
+        <div class="stat-label">Users</div></div>
+        """, unsafe_allow_html=True)
+    with c2:
+        st.markdown(f"""
+        <div class="stat-card" style="background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);">
+        <div class="stat-icon">📊</div>
+        <div class="stat-value">{stats.get('total_interviews', 0)}</div>
+        <div class="stat-label">Interviews</div></div>
+        """, unsafe_allow_html=True)
+    with c3:
+        st.markdown(f"""
+        <div class="stat-card" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+        <div class="stat-icon">✅</div>
+        <div class="stat-value">{stats.get('completed_interviews', 0)}</div>
+        <div class="stat-label">Completed</div></div>
+        """, unsafe_allow_html=True)
+    with c4:
+        st.markdown(f"""
+        <div class="stat-card" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+        <div class="stat-icon">🎯</div>
+        <div class="stat-value">{stats.get('average_score', 0)}</div>
+        <div class="stat-label">Avg Score</div></div>
+        """, unsafe_allow_html=True)
+    with c5:
+        st.markdown(f"""
+        <div class="stat-card" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
+        <div class="stat-icon">🚫</div>
+        <div class="stat-value">{stats.get('blocked_users', 0)}</div>
+        <div class="stat-label">Blocked</div></div>
+        """, unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # Users list
+    users_r = api_call("GET", "/admin/users")
+    if not isinstance(users_r, dict) or users_r.get("error"):
+        st.error("Failed to load users")
+        return
+
+    users = users_r.get("users", [])
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.markdown(f"### 👥 All Users ({len(users)})")
+
+    if users:
+        for u in users:
+            uid = u["id"]
+            is_blocked = u.get("is_blocked", False)
+            is_admin_user = u.get("is_admin", False)
+
+            col1, col2, col3, col4, col5, col6, col7 = st.columns([1, 2, 2, 1, 1, 1, 2])
+
+            with col1:
+                st.markdown(f"**{uid}**")
+            with col2:
+                name = u.get("full_name") or "-"
+                st.markdown(f"{name} {'👑' if is_admin_user else ''}")
+            with col3:
+                st.markdown(f"<small>{u['email']}</small>", unsafe_allow_html=True)
+            with col4:
+                st.markdown(f"{u.get('total_interviews', 0)}")
+            with col5:
+                st.markdown(f"{u.get('avg_score', 0)}")
+            with col6:
+                if is_blocked:
+                    st.markdown("🔴")
+                elif is_admin_user:
+                    st.markdown("👑")
+                else:
+                    st.markdown("🟢")
+            with col7:
+                bc1, bc2, bc3 = st.columns(3)
+
+                with bc1:
+                    if st.button("👁️", key=f"view_{uid}", help="View details"):
+                        st.session_state["admin_view_user"] = uid
+                        st.rerun()
+
+                with bc2:
+                    if is_admin_user:
+                        st.button("—", key=f"noblock_{uid}", disabled=True)
+                    else:
+                        if is_blocked:
+                            if st.button("✅", key=f"unblock_{uid}", help="Unblock"):
+                                r = api_call("POST", f"/admin/user/{uid}/unblock")
+                                if isinstance(r, dict) and r.get("success"):
+                                    st.success("Unblocked!")
+                                    time.sleep(0.5)
+                                    st.rerun()
+                        else:
+                            if st.button("🚫", key=f"block_{uid}", help="Block"):
+                                r = api_call("POST", f"/admin/user/{uid}/block", json={"reason": "Blocked by admin"})
+                                if isinstance(r, dict) and r.get("success"):
+                                    st.success("Blocked!")
+                                    time.sleep(0.5)
+                                    st.rerun()
+
+                with bc3:
+                    if is_admin_user:
+                        st.button("—", key=f"nodelete_{uid}", disabled=True)
+                    else:
+                        if st.button("🗑️", key=f"del_{uid}", help="Delete"):
+                            st.session_state[f"confirm_delete_{uid}"] = True
+                            st.rerun()
+
+            if st.session_state.get(f"confirm_delete_{uid}"):
+                st.warning(f"⚠️ Delete **{u['email']}**?")
+                cc1, cc2 = st.columns(2)
+                with cc1:
+                    if st.button("✅ Yes", key=f"yes_{uid}"):
+                        r = api_call("DELETE", f"/admin/user/{uid}")
+                        if isinstance(r, dict) and r.get("success"):
+                            st.success("Deleted!")
+                            st.session_state.pop(f"confirm_delete_{uid}", None)
+                            time.sleep(0.5)
+                            st.rerun()
+                with cc2:
+                    if st.button("❌ Cancel", key=f"no_{uid}"):
+                        st.session_state.pop(f"confirm_delete_{uid}", None)
+                        st.rerun()
+    else:
+        st.info("No users yet")
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # User detail view
+    if st.session_state.get("admin_view_user"):
+        view_id = st.session_state["admin_view_user"]
+        detail = api_call("GET", f"/admin/user/{view_id}")
+
+        if isinstance(detail, dict) and not detail.get("error"):
+            u = detail.get("user", {})
+            p = detail.get("profile")
+
+            st.markdown('<div class="card">', unsafe_allow_html=True)
+            ch1, ch2 = st.columns([4, 1])
+            with ch1:
+                st.markdown(f"### 👤 {u.get('full_name', 'User')}")
+            with ch2:
+                if st.button("❌ Close", key="close_detail"):
+                    st.session_state.pop("admin_view_user", None)
+                    st.rerun()
+
+            st.markdown(f"""
+            <div class="info-card">
+                <strong>Email:</strong> {u.get('email')}<br>
+                <strong>Role:</strong> {u.get('role', 'candidate').title()}<br>
+                <strong>Status:</strong> {'🔴 Blocked' if u.get('is_blocked') else '🟢 Active'}<br>
+                <strong>Joined:</strong> {str(u.get('created_at', ''))[:19]}<br>
+                <strong>Last Login:</strong> {str(u.get('last_login', 'Never'))[:19] if u.get('last_login') else 'Never'}
+            </div>
+            """, unsafe_allow_html=True)
+
+            if p:
+                st.markdown(f"""
+                <div class="info-card">
+                    <strong>Profile:</strong><br>
+                    Status: {p.get('status', '-')}<br>
+                    Education: {p.get('education', '-')}<br>
+                    Target Role: {p.get('target_role', '-')}<br>
+                    Skills: {p.get('skills', '-')}
+                </div>
+                """, unsafe_allow_html=True)
+
+            ivs = detail.get("interviews", [])
+            if ivs:
+                st.markdown(f"#### 📊 Interviews ({len(ivs)})")
+                for iv in ivs:
+                    with st.expander(f"#{iv['id']} — {iv['job_role']} | Score: {iv['total_score']}/10"):
+                        for i, q in enumerate(iv.get("questions", []), 1):
+                            st.markdown(f"**Q{i}:** {q.get('question', 'N/A')}")
+                            st.markdown(f"*A:* {q.get('answer') or 'No answer'}")
+                            if q.get("score") is not None:
+                                st.markdown(f"**Score:** {q['score']}/10")
+                            st.markdown("---")
+
+            acts = detail.get("activities", [])
+            if acts:
+                st.markdown(f"#### 📋 Activity ({len(acts)})")
+                rows = [{"Action": a.get("action", "-"), "Details": a.get("details", "-"), "Time": str(a.get("timestamp", ""))[:19]} for a in acts[:30]]
+                st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+
+            st.markdown('</div>', unsafe_allow_html=True)
 
 # ============================================
 # DATABASE VIEWER
@@ -1359,143 +1617,6 @@ def show_database_viewer():
 # ADMIN PANEL
 # ============================================
 
-def show_admin_panel():
-    st.markdown("""
-    <div class="hero">
-        <div class="hero-badge">Administrator</div>
-        <div class="hero-title" style="font-size: 2.3em;">Admin Panel</div>
-        <div class="hero-subtitle">System-wide analytics and user activity</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # Global stats
-    stats = api_call("GET", "/admin/stats")
-    if "error" in stats:
-        st.error(f"Failed to load stats: {stats['error']}")
-        return
-
-    c1, c2, c3, c4, c5 = st.columns(5)
-    with c1:
-        st.markdown(f"""
-        <div class="stat-card"><div class="stat-icon">👥</div>
-        <div class="stat-value">{stats.get('total_users', 0)}</div>
-        <div class="stat-label">Users</div></div>
-        """, unsafe_allow_html=True)
-    with c2:
-        st.markdown(f"""
-        <div class="stat-card" style="background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);">
-        <div class="stat-icon">📊</div>
-        <div class="stat-value">{stats.get('total_interviews', 0)}</div>
-        <div class="stat-label">Interviews</div></div>
-        """, unsafe_allow_html=True)
-    with c3:
-        st.markdown(f"""
-        <div class="stat-card" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
-        <div class="stat-icon">✅</div>
-        <div class="stat-value">{stats.get('completed_interviews', 0)}</div>
-        <div class="stat-label">Completed</div></div>
-        """, unsafe_allow_html=True)
-    with c4:
-        st.markdown(f"""
-        <div class="stat-card" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
-        <div class="stat-icon">🎯</div>
-        <div class="stat-value">{stats.get('average_score', 0)}</div>
-        <div class="stat-label">Avg Score</div></div>
-        """, unsafe_allow_html=True)
-    with c5:
-        st.markdown(f"""
-        <div class="stat-card" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);">
-        <div class="stat-icon">🔑</div>
-        <div class="stat-value">{stats.get('logins_today', 0)}</div>
-        <div class="stat-label">Logins Today</div></div>
-        """, unsafe_allow_html=True)
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    # Users list
-    users_r = api_call("GET", "/admin/users")
-    if "error" in users_r:
-        st.error(f"Failed to load users: {users_r['error']}")
-        return
-
-    users = users_r.get("users", [])
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.markdown(f"### All Users ({len(users)})")
-
-    if users:
-        rows = []
-        for u in users:
-            rows.append({
-                "ID": u["id"],
-                "Name": u.get("full_name") or "-",
-                "Email": u["email"],
-                "Role": "Admin" if u.get("is_admin") else u.get("role", "candidate").title(),
-                "Target Role": u.get("target_role") or "-",
-                "Interviews": u.get("total_interviews", 0),
-                "Avg Score": u.get("avg_score", 0),
-                "Activities": u.get("total_activities", 0),
-                "Joined": str(u.get("created_at", ""))[:10],
-                "Last Login": str(u.get("last_login", ""))[:19] if u.get("last_login") else "Never",
-            })
-        df = pd.DataFrame(rows)
-        st.dataframe(df, use_container_width=True, hide_index=True)
-    else:
-        st.info("No users yet")
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    # User detail drilldown
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.markdown("### User Activity Details")
-
-    if users:
-        user_ids = [u["id"] for u in users]
-        selected = st.selectbox("Select user to view details", user_ids,
-                                format_func=lambda x: next((u["email"] for u in users if u["id"] == x), str(x)))
-
-        if selected:
-            detail = api_call("GET", f"/admin/user/{selected}")
-            if isinstance(detail, dict) and "error" not in detail:
-                u = detail.get("user", {})
-                p = detail.get("profile")
-
-                st.markdown(f"""
-                <div class="info-card">
-                    <strong>{u.get('full_name', 'User')}</strong> — {u.get('email')}<br>
-                    Role: {u.get('role')} • Joined: {str(u.get('created_at', ''))[:10]}<br>
-                    Last Login: {str(u.get('last_login', 'Never'))[:19]}
-                </div>
-                """, unsafe_allow_html=True)
-
-                if p:
-                    st.markdown(f"""
-                    <div class="info-card">
-                        <strong>Profile:</strong><br>
-                        Status: {p.get('status', '-')}<br>
-                        Education: {p.get('education', '-')}<br>
-                        Target Role: {p.get('target_role', '-')}<br>
-                        Experience: {p.get('experience_years', 0)} years<br>
-                        Skills: {p.get('skills', '-')}
-                    </div>
-                    """, unsafe_allow_html=True)
-
-                # Interviews
-                ivs = detail.get("interviews", [])
-                if ivs:
-                    st.markdown("**Interview History:**")
-                    rows = [{"ID": i["id"], "Role": i["job_role"], "Status": i["status"].title(),
-                             "Score": f"{i['total_score']}/10", "Date": str(i["created_at"])[:10]} for i in ivs]
-                    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
-
-                # Activities
-                acts = detail.get("activities", [])
-                if acts:
-                    st.markdown("**Recent Activity:**")
-                    rows = [{"Action": a["action"], "Details": a.get("details", ""),
-                             "Time": str(a["timestamp"])[:19]} for a in acts]
-                    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
-
-    st.markdown('</div>', unsafe_allow_html=True)
 
 
 # ============================================
