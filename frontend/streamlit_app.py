@@ -25,18 +25,21 @@ st.set_page_config(
 # PAGE BACKGROUNDS
 # ============================================
 
-PAGE_BACKGROUNDS = {
-    "Login": "https://images.unsplash.com/photo-1521737711867-e3b97375f902?w=1920&q=80",
-    "ProfileSetup": "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=1920&q=80",
-    "Dashboard": "https://images.unsplash.com/photo-1497366754035-f200968a6e72?w=1920&q=80",
-    "Profile": "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=1920&q=80",
-    "Resume": "https://images.unsplash.com/photo-1586281380349-632531db7ed4?w=1920&q=80",
-    "Interview": "https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=1920&q=80",
-    "History": "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=1920&q=80",
-    "Database": "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1920&q=80",
-    "Admin": "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=1920&q=80",
-}
+# CCSU Campus Image (uses for all pages)
+CCSU_CAMPUS = "https://scriet.ccsuniversity.ac.in/assets/images/computer-02.jpg"
+CCSU_LOGO = "https://www.ccsuniversity.ac/www.ccsuniversity.ac.in/assests/images/CCSU-Logo.jpg"
 
+PAGE_BACKGROUNDS = {
+    "Login": CCSU_CAMPUS,
+    "ProfileSetup": CCSU_CAMPUS,
+    "Dashboard": CCSU_CAMPUS,
+    "Profile": CCSU_CAMPUS,
+    "Resume": CCSU_CAMPUS,
+    "Interview": CCSU_CAMPUS,
+    "History": CCSU_CAMPUS,
+    "Database": CCSU_CAMPUS,
+    "Admin": CCSU_CAMPUS,
+}
 
 def set_page_background(key):
     img = PAGE_BACKGROUNDS.get(key, PAGE_BACKGROUNDS["Dashboard"])
@@ -437,12 +440,13 @@ def is_admin():
 # ============================================
 
 def show_login():
-    st.markdown("""
-    <div class="hero">
-        <div class="hero-badge">Powered by Google Gemini AI</div>
+    st.markdown(f"""
+    <div class="hero" style="position: relative;">
+        <img src="{CCSU_LOGO}" style="width: 100px; height: 100px; object-fit: contain; margin-bottom: 20px; border-radius: 16px; background: white; padding: 8px; box-shadow: 0 8px 30px rgba(0,0,0,0.3);" />
+        <div class="hero-badge">Chaudhary Charan Singh University, Meerut</div>
         <div class="hero-title">AI Interview System</div>
         <div class="hero-subtitle">Land your dream job with AI-powered mock interviews</div>
-        <div class="hero-brand">Crafted by Khushi Goyal, Sadhna • MCA • 2025-2027</div>
+        <div class="hero-brand">Crafted by Khushi Sadhna • MCA • Batch 2025-2027</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -595,11 +599,12 @@ def show_profile_setup():
 
 def show_sidebar():
     with st.sidebar:
-        st.markdown("""
+        st.markdown(f"""
         <div style="text-align: center; padding: 15px 0;">
-            <div style="font-size: 3.5em;">🎤</div>
+            <img src="{CCSU_LOGO}" style="width: 80px; height: 80px; object-fit: contain; margin-bottom: 10px; border-radius: 12px; background: white; padding: 5px;" />
             <div style="font-size: 1.35em; font-weight: 800;">AI Interview</div>
-            <div style="font-size: 0.7em; opacity: 0.6; letter-spacing: 2px;">Crafted by Khushi Goyal, Sadhna • MCA • 2025-2027</div>
+            <div style="font-size: 0.7em; opacity: 0.7; letter-spacing: 1px;">CCSU MEERUT</div>
+            <div style="font-size: 0.65em; opacity: 0.6;">BY KHUSHI SADHNA</div>
         </div>
         """, unsafe_allow_html=True)
 
