@@ -1,12 +1,12 @@
 # ============================================
 # AI Interview System - AI Engine
 # ============================================
-# Yeh file Gemini AI se baat karti hai.
-# Questions generate karti hai, answers evaluate karti hai.
-# ============================================
 
 import json
 import re
+import uuid
+import time
+import random
 import google.generativeai as genai
 
 from app.config import settings
@@ -19,23 +19,30 @@ from app.utils.prompts import (
 
 
 # ============================================
-# 1. GEMINI INITIALIZE
+# GEMINI INITIALIZE
 # ============================================
 
 genai.configure(api_key=settings.GEMINI_API_KEY)
 
-# Model setup — flash fast aur free hai
-model = genai.GenerativeModel("gemini-3.8-flash")
+# Fallback models — agar ek fail ho toh doosra try karo
+MODELS = [
+    "gemini-2.5-flash",
+    "gemini-2.0-flash-exp",
+    "gemini-1.5-flash",
+    "gemini-1.5-pro",
+    "gemini-pro",
+]
 
 
-# ============================================
-# 2. HELPER - JSON Clean Karo
-# ============================================
+def _get_model(name=None):
+    """Get model instance. If name None, try all models."""
+    if name:
+        return genai.GenerativeModel(name)
+    return genai.GenerativeModel(MODELS[0])
+
 
 def _clean_json_response(text: str) -> str:
-    """
-    AI ke response se ```json aur ``` hata deta hai.
-    """
+    """Clean AI response to get pure JSON."""
     text = text.strip()
     text = re.sub(r"^```json\s*", "", text)
     text = re.sub(r"^```\s*", "", text)
@@ -44,8 +51,9 @@ def _clean_json_response(text: str) -> str:
 
 
 # ============================================
-# 3. QUESTION GENERATION
+# QUESTION GENERATION (GUARANTEED UNIQUE)
 # ============================================
+
 def generate_questions(
     job_role: str,
     skills: list,
@@ -53,150 +61,169 @@ def generate_questions(
     difficulty: str = "medium"
 ) -> list:
     """
-    Generates UNIQUE interview questions every time using random seeds.
+    Generates UNIQUE questions every call.
+    Uses multiple random seeds + timestamp + retry with different models.
     """
-    import random
-    import uuid
-    import time
+    skills_str = ", ".join(skills) if skills else "general skills"
 
-    skills_str = ", ".join(skills) if skills else "general"
-    
-    # Unique session ID — guarantees different output every time
+    # Ultra-unique seeds
     session_id = str(uuid.uuid4())
-    timestamp = str(time.time())
+    timestamp = str(int(time.time() * 1000))
+    random_num = random.randint(100000, 999999)
 
-    prompt = QUESTION_GENERATION_PROMPT.format(
-        num_questions=num_questions,
-        job_role=job_role,
-        skills=skills_str,
-        difficulty=difficulty,
-        session_id=session_id,
-        timestamp=timestamp,
-    )
+    prompt = f"""You are a senior technical interviewer. Generate exactly {num_questions} COMPLETELY NEW and UNIQUE interview questions.
 
-    try:
-        response = model.generate_content(
-            prompt,
-            generation_config={
-                "temperature": 1.5,       # Max randomness
-                "top_p": 0.98,
-                "top_k": 50,
-                "candidate_count": 1,
-            },
-        )
-        cleaned = _clean_json_response(response.text)
-        questions = json.loads(cleaned)
+**Job Role:** {job_role}
+**Skills:** {skills_str}
+**Difficulty:** {difficulty}
 
-        if not isinstance(questions, list):
-            raise ValueError("AI did not return a list")
+**UNIQUE SESSION: {session_id}**
+**TIMESTAMP: {timestamp}**
+**RANDOM: {random_num}**
 
-        # Deduplicate within batch
-        seen = set()
-        unique = []
-        for q in questions:
-            q_norm = q.strip().lower()
-            if q_norm not in seen:
-                seen.add(q_norm)
-                unique.append(q.strip())
+CRITICAL RULES:
+1. These must be BRAND NEW questions, never generated before
+2. Each question must be DIFFERENT from the others
+3. Mix different topics: fundamentals, scenarios, debugging, optimization, design, best practices
+4. Do NOT repeat common interview questions
+5. Be specific to the role and skills
+6. Each question must be 1-2 sentences
 
-        return unique[:num_questions]
+Vary these aspects randomly:
+- Topic area (Python internals vs frameworks vs databases vs algorithms)
+- Question type (what/why/how vs scenario-based vs problem-solving)
+- Complexity level within {difficulty}
 
-    except json.JSONDecodeError as e:
-        print(f"[ai_engine] JSON error: {e}")
-        print(f"[ai_engine] Raw: {response.text[:200]}")
-        return [f"Explain a challenging {job_role} project you worked on."]
-    except Exception as e:
-        print(f"[ai_engine] Error: {e}")
-        return [f"Describe your experience with {job_role}."]
+Return ONLY a valid JSON array of {num_questions} strings. Nothing else.
+Example: ["Question 1?", "Question 2?", "Question 3?"]"""
 
+    # Try each model until success
+    last_error = None
+    for model_name in MODELS:
+        try:
+            model = _get_model(model_name)
+            response = model.generate_content(
+                prompt,
+                generation_config={
+                    "temperature": 2.0,
+                    "top_p": 1.0,
+                    "top_k": 100,
+                    "candidate_count": 1,
+                    "max_output_tokens": 2000,
+                },
+            )
+            
+            cleaned = _clean_json_response(response.text)
+            questions = json.loads(cleaned)
+
+            if not isinstance(questions, list) or len(questions) == 0:
+                continue
+
+            # Deduplicate
+            seen = set()
+            unique = []
+            for q in questions:
+                q_clean = q.strip()
+                q_norm = q_clean.lower()
+                if q_norm not in seen and len(q_clean) > 10:
+                    seen.add(q_norm)
+                    unique.append(q_clean)
+
+            if len(unique) >= num_questions:
+                print(f"[ai_engine] Generated {len(unique)} unique questions using {model_name}")
+                return unique[:num_questions]
+            elif len(unique) > 0:
+                print(f"[ai_engine] Only got {len(unique)} from {model_name}, retrying...")
+                last_error = f"Only {len(unique)} questions"
+
+        except Exception as e:
+            print(f"[ai_engine] Model {model_name} failed: {e}")
+            last_error = str(e)
+            continue
+
+    # All models failed — return fallback
+    print(f"[ai_engine] All models failed. Last error: {last_error}")
+    return [
+        f"Describe a challenging project you worked on as a {job_role}.",
+        f"How do you stay updated with new technologies in your field?",
+        f"Explain a time when you had to debug a complex issue.",
+        f"What's your approach to learning a new technology?",
+        f"How do you handle tight deadlines and pressure?",
+    ][:num_questions]
 
 
 # ============================================
-# 4. ANSWER EVALUATION
+# ANSWER EVALUATION
 # ============================================
 
 def evaluate_answer(question: str, answer: str) -> dict:
-    """
-    Answer ko evaluate karta hai aur score deta hai.
-    Returns: dict with score, feedback, etc.
-    """
-    prompt = ANSWER_EVALUATION_PROMPT.format(
-        question=question,
-        answer=answer,
-    )
-    
+    """Evaluate an answer."""
+    prompt = ANSWER_EVALUATION_PROMPT.format(question=question, answer=answer)
+
     default_response = {
-        "score": 5,
-        "technical_accuracy": 5,
-        "clarity": 5,
-        "completeness": 5,
-        "strengths": "Answer was provided.",
-        "weaknesses": "Could not evaluate in detail.",
-        "improvement_tips": "Try to provide more specific examples.",
+        "score": 0,
+        "technical_accuracy": 0,
+        "clarity": 0,
+        "completeness": 0,
+        "strengths": "N/A",
+        "weaknesses": "Evaluation failed",
+        "improvement_tips": "Try again",
     }
-    
-    try:
-        response = model.generate_content(prompt)
-        cleaned = _clean_json_response(response.text)
-        result = json.loads(cleaned)
-        return result
-    
-    except json.JSONDecodeError as e:
-        print(f"[ai_engine] JSON decode error: {e}")
-        return default_response
-    except Exception as e:
-        print(f"[ai_engine] Error: {e}")
-        return default_response
+
+    for model_name in MODELS[:3]:
+        try:
+            model = _get_model(model_name)
+            response = model.generate_content(
+                prompt,
+                generation_config={
+                    "temperature": 0.3,
+                    "top_p": 0.9,
+                    "candidate_count": 1,
+                },
+            )
+            cleaned = _clean_json_response(response.text)
+            result = json.loads(cleaned)
+            return result
+        except Exception as e:
+            print(f"[ai_engine] Eval failed with {model_name}: {e}")
+            continue
+
+    return default_response
 
 
 # ============================================
-# 5. FOLLOW-UP QUESTION
+# FOLLOWUP
 # ============================================
 
 def generate_followup(question: str, answer: str) -> str:
-    """
-    Candidate ke answer pe ek follow-up question banata hai.
-    """
-    prompt = FOLLOWUP_QUESTION_PROMPT.format(
-        question=question,
-        answer=answer,
-    )
-    
-    try:
-        response = model.generate_content(prompt)
-        return response.text.strip()
-    except Exception as e:
-        print(f"[ai_engine] Error: {e}")
-        return "Can you elaborate more on that?"
+    prompt = FOLLOWUP_QUESTION_PROMPT.format(question=question, answer=answer)
+    for model_name in MODELS[:3]:
+        try:
+            model = _get_model(model_name)
+            response = model.generate_content(prompt)
+            return response.text.strip()
+        except Exception as e:
+            continue
+    return "Can you elaborate on that?"
 
 
 # ============================================
-# 6. RESUME PARSING
+# RESUME PARSING
 # ============================================
 
 def parse_resume(resume_text: str) -> dict:
-    """
-    Resume text se skills aur experience nikaltа hai.
-    """
-    default_response = {
-        "skills": [],
-        "experience_years": 0,
-        "summary": "Could not parse resume.",
-    }
-    
-    # Bahut lamba text na bhejo — AI ka limit hai
-    truncated_text = resume_text[:4000]
-    
-    prompt = RESUME_PARSING_PROMPT.format(resume_text=truncated_text)
-    
-    try:
-        response = model.generate_content(prompt)
-        cleaned = _clean_json_response(response.text)
-        result = json.loads(cleaned)
-        return result
-    except json.JSONDecodeError as e:
-        print(f"[ai_engine] JSON decode error: {e}")
-        return default_response
-    except Exception as e:
-        print(f"[ai_engine] Error: {e}")
-        return default_response
+    default = {"skills": [], "experience_years": 0, "summary": "Could not parse"}
+    truncated = resume_text[:4000]
+    prompt = RESUME_PARSING_PROMPT.format(resume_text=truncated)
+
+    for model_name in MODELS[:3]:
+        try:
+            model = _get_model(model_name)
+            response = model.generate_content(prompt)
+            cleaned = _clean_json_response(response.text)
+            return json.loads(cleaned)
+        except Exception as e:
+            print(f"[ai_engine] Resume parse failed with {model_name}: {e}")
+            continue
+
+    return default

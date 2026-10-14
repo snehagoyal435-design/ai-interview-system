@@ -284,10 +284,6 @@ def list_my_interviews(
             for i in interviews
         ],
     }
-# ============================================
-# 8. ADD MORE QUESTIONS (Practice Mode)
-# ============================================
-
 @router.post("/{interview_id}/add-questions", response_model=dict)
 def add_more_questions(
     interview_id: int,
@@ -295,75 +291,79 @@ def add_more_questions(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Add more questions to existing interview for practice."""
+    """Add more questions — GUARANTEED different from existing."""
     interview = db.query(Interview).filter(Interview.id == interview_id).first()
     if not interview:
         raise HTTPException(404, "Interview not found")
     if interview.user_id != current_user.id:
         raise HTTPException(403, "Not authorized")
     
-    # Profile skills
+    # Get skills from profile
     profile = db.query(Profile).filter(Profile.user_id == current_user.id).first()
     skills = []
     if profile and profile.skills:
         skills = [s.strip() for s in profile.skills.split(",") if s.strip()]
     
-    # Existing questions
+    # Existing question texts (for dedup)
     existing = db.query(Question).filter(Question.interview_id == interview_id).all()
-    existing_texts = [q.question_text.strip().lower() for q in existing]
+    existing_set = set(q.question_text.strip().lower() for q in existing)
     
-    # Generate new questions (with retry for uniqueness)
-    added = 0
-    max_attempts = 3
+    print(f"[add_questions] Existing: {len(existing_set)} questions")
     
-    for attempt in range(max_attempts):
+    # Generate new batch
+    added = []
+    attempts = 0
+    max_attempts = 5
+    
+    while len(added) < count and attempts < max_attempts:
+        attempts += 1
+        print(f"[add_questions] Attempt {attempts}: generating {count - len(added)} more...")
+        
         try:
-            new_list = generate_questions(
+            new_batch = generate_questions(
                 job_role=interview.job_role,
                 skills=skills,
-                num_questions=count,
+                num_questions=count - len(added) + 2,  # Extra to filter
                 difficulty="medium",
             )
         except Exception as e:
-            raise HTTPException(500, f"Generation failed: {str(e)}")
+            print(f"[add_questions] Generation failed: {e}")
+            raise HTTPException(500, f"AI generation failed: {str(e)}")
         
-        for q_text in new_list:
-            q_norm = q_text.strip().lower()
-            if q_norm not in existing_texts:
-                q = Question(interview_id=interview_id, question_text=q_text)
-                db.add(q)
-                existing_texts.append(q_norm)
-                added += 1
+        print(f"[add_questions] Got {len(new_batch)} from AI")
+        
+        for q_text in new_batch:
+            q_clean = q_text.strip()
+            q_norm = q_clean.lower()
             
-            if added >= count:
-                break
-        
-        if added >= count:
-            break
-    
-    # If still no unique questions, add whatever we have
-    if added == 0:
-        for q_text in new_list[:count]:
-            q = Question(interview_id=interview_id, question_text=q_text)
+            if q_norm in existing_set:
+                print(f"[add_questions] Skipping duplicate")
+                continue
+            
+            q = Question(interview_id=interview_id, question_text=q_clean)
             db.add(q)
-            added += 1
+            existing_set.add(q_norm)
+            added.append(q_clean)
+            
+            if len(added) >= count:
+                break
     
     db.commit()
     
-    # Log
+    print(f"[add_questions] Added {len(added)} unique questions")
+    
     db.add(Activity(
         user_id=current_user.id,
         action="practice_mode",
-        details=f"Added {added} more questions"
+        details=f"Added {len(added)} more questions"
     ))
     db.commit()
     
-    # Return all questions
     all_q = db.query(Question).filter(Question.interview_id == interview_id).all()
     
     return {
         "success": True,
-        "added_count": added,
+        "added_count": len(added),
         "total_questions": len(all_q),
         "questions": [
             {
