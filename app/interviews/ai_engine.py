@@ -26,12 +26,12 @@ genai.configure(api_key=settings.GEMINI_API_KEY)
 
 # Fallback models — agar ek fail ho toh doosra try karo
 MODELS = [
-    "gemini-3.8-flash",
-    "gemini-3.7-flash",
-    "gemini-3.6-flash",
-    "gemini-3.5-flash",
     "gemini-flash-latest",
+    "gemini-flash-lite-latest",
     "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
+    "gemini-3.5-flash",
+    "gemini-3.1-flash-lite",
 ]
 def _get_model(name=None):
     """Get model instance. If name None, try all models."""
