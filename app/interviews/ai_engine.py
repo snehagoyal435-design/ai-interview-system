@@ -61,7 +61,7 @@ def generate_questions(
 
     skills_str = ", ".join(skills) if skills else "general"
 
-    # Random seed generate karo — har call unique hoga
+    # Random seed generate karo
     random_seed = f"{uuid.uuid4().hex[:8]}-{random.randint(1000, 9999)}"
 
     prompt = QUESTION_GENERATION_PROMPT.format(
@@ -76,7 +76,7 @@ def generate_questions(
         response = model.generate_content(
             prompt,
             generation_config={
-                "temperature": 1.2,       # High randomness
+                "temperature": 1.2,
                 "top_p": 0.95,
                 "top_k": 40,
                 "candidate_count": 1,
@@ -106,6 +106,7 @@ def generate_questions(
     except Exception as e:
         print(f"[ai_engine] Error: {e}")
         return [f"Explain a challenging project you worked on."]
+
 
 
 # ============================================

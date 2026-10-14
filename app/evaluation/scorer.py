@@ -53,7 +53,7 @@ def score_answer(
         db.commit()
         db.refresh(question)
         update_interview_total_score(question.interview_id, db)
-        
+
         return {
             "success": True,
             "score": 0,
@@ -68,7 +68,6 @@ def score_answer(
                 "improvement_tips": "Please answer the question",
             },
             "error": None,
-        
         }
     
     # Step 3: AI se evaluate karwao
