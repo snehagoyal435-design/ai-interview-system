@@ -9,7 +9,6 @@
 # ============================================
 # 1. QUESTION GENERATION PROMPT
 # ============================================
-
 QUESTION_GENERATION_PROMPT = """
 You are an expert technical interviewer with 10+ years of experience.
 
@@ -18,6 +17,8 @@ Generate exactly {num_questions} interview questions for the following:
 **Job Role:** {job_role}
 **Candidate Skills:** {skills}
 **Difficulty Level:** {difficulty}
+
+**Random Seed (use this for uniqueness):** {random_seed}
 
 **Rules:**
 1. Questions should be a mix of:
@@ -30,6 +31,15 @@ Generate exactly {num_questions} interview questions for the following:
 5. If difficulty is "easy", focus on basics
 6. If difficulty is "medium", include intermediate concepts
 7. If difficulty is "hard", include advanced + system design
+8. **CRITICAL: Every generation must produce DIFFERENT questions. 
+   Do NOT repeat the same questions. Use the random seed to vary topics.**
+9. Vary between:
+   - Definitions and concepts
+   - Real-world scenarios
+   - Debugging problems
+   - Code optimization
+   - Design patterns
+   - Best practices
 
 **Output Format (STRICT):**
 Return ONLY a valid JSON array of strings. No extra text, no markdown.
@@ -37,26 +47,54 @@ Example:
 ["Question 1 text here?", "Question 2 text here?", "Question 3 text here?"]
 """
 
-
 # ============================================
 # 2. ANSWER EVALUATION PROMPT
 # ============================================
 
 ANSWER_EVALUATION_PROMPT = """
-You are an expert technical interviewer evaluating a candidate's answer.
+You are a senior technical interviewer evaluating a candidate's answer.
 
 **Question:** {question}
 
 **Candidate's Answer:** {answer}
 
-**Evaluation Criteria:**
-1. **Technical Accuracy** (0-10): Is the answer factually correct?
-2. **Clarity** (0-10): Is the answer well-structured and easy to understand?
+**Evaluation Guidelines:**
+- If the answer is EMPTY, IRRELEVANT, or says "I don't know":
+  - score = 0
+  - technical_accuracy = 0
+  - clarity = 0
+  - completeness = 0
+  - strengths: "No relevant content provided"
+  - weaknesses: "The answer does not address the question"
+  - improvement_tips: "Please provide a meaningful answer related to the question"
+
+- If the answer is PARTIAL (some correct points but missing key details):
+  - score = 3-6
+  - Provide specific feedback on what's missing
+
+- If the answer is GOOD (mostly correct, clear):
+  - score = 7-8
+  - Suggest minor improvements
+
+- If the answer is EXCELLENT (complete, accurate, well-explained):
+  - score = 9-10
+  - Praise specific strengths
+
+**Scoring Criteria:**
+1. **Technical Accuracy** (0-10): Are the facts correct?
+2. **Clarity** (0-10): Is it well-structured and understandable?
 3. **Completeness** (0-10): Does it cover all important points?
-4. **Overall Score** (0-10): Weighted average of the above
+4. **Overall Score** (0-10): Balanced average
+
+**Be STRICT with scoring:**
+- Wrong answer → 0-2
+- Vague answer → 3-4
+- Partial correct → 5-6
+- Good answer → 7-8
+- Excellent answer → 9-10
 
 **Output Format (STRICT):**
-Return ONLY a valid JSON object with this exact structure. No markdown, no extra text:
+Return ONLY a valid JSON object. No markdown, no extra text:
 {{
     "score": <integer 0-10>,
     "technical_accuracy": <integer 0-10>,
@@ -64,7 +102,7 @@ Return ONLY a valid JSON object with this exact structure. No markdown, no extra
     "completeness": <integer 0-10>,
     "strengths": "<1-2 sentences about what was good>",
     "weaknesses": "<1-2 sentences about what was missing or wrong>",
-    "improvement_tips": "<1-2 actionable suggestions to improve>"
+    "improvement_tips": "<1-2 actionable suggestions>"
 }}
 """
 

@@ -46,7 +46,6 @@ def _clean_json_response(text: str) -> str:
 # ============================================
 # 3. QUESTION GENERATION
 # ============================================
-
 def generate_questions(
     job_role: str,
     skills: list,
@@ -55,27 +54,51 @@ def generate_questions(
 ) -> list:
     """
     Role aur skills ke basis pe interview questions banata hai.
-    Returns: list of question strings
+    Random seed use karta hai taaki har baar naye questions aayen.
     """
+    import random
+    import uuid
+
     skills_str = ", ".join(skills) if skills else "general"
-    
+
+    # Random seed generate karo — har call unique hoga
+    random_seed = f"{uuid.uuid4().hex[:8]}-{random.randint(1000, 9999)}"
+
     prompt = QUESTION_GENERATION_PROMPT.format(
         num_questions=num_questions,
         job_role=job_role,
         skills=skills_str,
         difficulty=difficulty,
+        random_seed=random_seed,
     )
-    
+
     try:
-        response = model.generate_content(prompt)
+        response = model.generate_content(
+            prompt,
+            generation_config={
+                "temperature": 1.2,       # High randomness
+                "top_p": 0.95,
+                "top_k": 40,
+                "candidate_count": 1,
+            },
+        )
         cleaned = _clean_json_response(response.text)
         questions = json.loads(cleaned)
-        
+
         if not isinstance(questions, list):
             raise ValueError("AI ne list return nahi ki")
-        
-        return questions[:num_questions]
-    
+
+        # Deduplicate
+        seen = set()
+        unique_questions = []
+        for q in questions:
+            q_norm = q.strip().lower()
+            if q_norm not in seen:
+                seen.add(q_norm)
+                unique_questions.append(q.strip())
+
+        return unique_questions[:num_questions]
+
     except json.JSONDecodeError as e:
         print(f"[ai_engine] JSON decode error: {e}")
         print(f"[ai_engine] Raw response: {response.text[:200]}")

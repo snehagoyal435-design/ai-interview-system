@@ -47,11 +47,28 @@ def score_answer(
     
     # Step 2: Check karo answer hai ya nahi
     if not question.answer_text or not question.answer_text.strip():
+        # Empty answer → score 0, still save
+        question.score = 0
+        question.feedback = "No answer provided. Please provide a meaningful response."
+        db.commit()
+        db.refresh(question)
+        update_interview_total_score(question.interview_id, db)
+        
         return {
-            "success": False,
-            "score": None,
-            "feedback": None,
-            "error": "Answer text is empty",
+            "success": True,
+            "score": 0,
+            "feedback": question.feedback,
+            "details": {
+                "score": 0,
+                "technical_accuracy": 0,
+                "clarity": 0,
+                "completeness": 0,
+                "strengths": "N/A",
+                "weaknesses": "No answer provided",
+                "improvement_tips": "Please answer the question",
+            },
+            "error": None,
+        
         }
     
     # Step 3: AI se evaluate karwao
