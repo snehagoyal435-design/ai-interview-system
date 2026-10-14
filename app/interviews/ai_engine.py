@@ -26,11 +26,11 @@ genai.configure(api_key=settings.GEMINI_API_KEY)
 
 # Fallback models — agar ek fail ho toh doosra try karo
 MODELS = [
+
     "gemini-flash-latest",
     "gemini-flash-lite-latest",
     "gemini-2.5-flash",
     "gemini-2.5-flash-lite",
-    "gemini-3.5-flash",
     "gemini-3.1-flash-lite",
 ]
 def _get_model(name=None):
@@ -67,8 +67,9 @@ def generate_questions(
 
     # Ultra-unique seeds
     session_id = str(uuid.uuid4())
-    timestamp = str(int(time.time() * 1000))
-    random_num = random.randint(100000, 999999)
+    timestamp = str(int(time.time() * 1000000))
+    random_num = random.randint(100000000, 999999999)
+    random.shuffle(MODELS)  # Shuffle models each call
 
     prompt = f"""You are a senior technical interviewer. Generate exactly {num_questions} COMPLETELY NEW and UNIQUE interview questions.
 

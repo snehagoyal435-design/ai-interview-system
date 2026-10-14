@@ -1109,46 +1109,16 @@ def show_start_interview():
             
             st.markdown(f"""
             <div class="hero">
-                <div class="hero-banner" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.4) 0%, rgba(5, 150, 105, 0.4) 100%); 
-                                              padding: 40px; border-radius: 20px; text-align: center; color: white; margin-bottom: 30px;">
-                    <div style="font-size: 4em;">🎉</div>
-                    <div style="font-size: 2.2em; font-weight: 900; margin: 10px 0;">Round Complete!</div>
-                    <div style="font-size: 1.1em; opacity: 0.9;">You answered {total_answered} questions</div>
-                </div>
+                <div class="hero-title" style="font-size: 2.3em;">🎉 Interview Complete!</div>
+                <div class="hero-subtitle">You answered {total_answered} questions. Great job!</div>
             </div>
             """, unsafe_allow_html=True)
             
-            st.markdown("### 🎯 What would you like to do?")
+            st.markdown("### 🎯 What would you like to do next?")
             
-            c1, c2, c3 = st.columns(3)
+            c1, c2 = st.columns(2)
             
             with c1:
-                st.markdown("""
-                <div class="feature-card" style="padding: 20px;">
-                    <div class="feature-icon">➕</div>
-                    <div class="feature-title">Practice More</div>
-                    <div class="feature-desc">Add 5 new questions to keep practicing</div>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                if st.button("➕ Add 5 More Questions", use_container_width=True, key="more_q_btn"):
-                    with st.spinner("🤖 AI is generating 5 new questions..."):
-                        r = api_call(
-                            "POST",
-                            f"/interviews/{interview['interview_id']}/add-questions?count=5"
-                        )
-                    
-                    if isinstance(r, dict) and r.get("error"):
-                        st.error(f"Error: {r['error']}")
-                    else:
-                        # Update session state
-                        st.session_state.interview["questions"] = r.get("questions", [])
-                        st.session_state.current_q = total_answered
-                        st.success(f"✅ Added {r.get('added_count', 5)} new questions!")
-                        time.sleep(1)
-                        st.rerun()
-            
-            with c2:
                 st.markdown("""
                 <div class="feature-card" style="padding: 20px;">
                     <div class="feature-icon">📊</div>
@@ -1175,16 +1145,16 @@ def show_start_interview():
                         time.sleep(1.5)
                         st.rerun()
             
-            with c3:
+            with c2:
                 st.markdown("""
                 <div class="feature-card" style="padding: 20px;">
                     <div class="feature-icon">🔄</div>
                     <div class="feature-title">New Interview</div>
-                    <div class="feature-desc">Start a fresh interview</div>
+                    <div class="feature-desc">Start a fresh interview with new questions</div>
                 </div>
                 """, unsafe_allow_html=True)
                 
-                if st.button("🔄 New Interview", use_container_width=True, key="new_int_btn_final"):
+                if st.button("🔄 Start New Interview", use_container_width=True, key="new_int_btn_final"):
                     st.session_state.interview = None
                     st.session_state.current_q = 0
                     st.rerun()
