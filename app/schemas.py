@@ -137,3 +137,25 @@ class AdminUserInfo(BaseModel):
     total_interviews: int
     avg_score: float
     total_activities: int
+# ---- ADMIN ----
+class AdminUserInfo(BaseModel):
+    id: int
+    email: str
+    full_name: Optional[str]
+    role: str
+    is_admin: bool
+    is_blocked: bool
+    created_at: datetime
+    last_login: Optional[datetime]
+    total_interviews: int
+    avg_score: float
+    total_activities: int
+
+
+class AdminLoginRequest(BaseModel):
+    email: str
+    admin_password: str
+
+
+class BlockUserRequest(BaseModel):
+    reason: Optional[str] = "Violation of terms"

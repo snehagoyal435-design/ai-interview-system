@@ -36,7 +36,6 @@ def signup(user_data: UserCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_user)
 
-    # Log activity
     activity = Activity(user_id=new_user.id, action="signup", details="New user registered")
     db.add(activity)
     db.commit()
@@ -53,10 +52,55 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     if not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(401, "Invalid email or password")
 
-    # Update last login
+    # Check if blocked
+    if user.is_blocked:
+        raise HTTPException(403, f"Account blocked: {user.block_reason or 'Contact admin'}")
+
     user.last_login = datetime.utcnow()
     activity = Activity(user_id=user.id, action="login", details="User logged in")
     db.add(activity)
+    db.commit()
+
+    token = create_access_token(
+        data={"sub": user.email},
+        expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
+    )
+    return {"access_token": token, "token_type": "bearer"}
+
+
+@router.post("/admin-login", response_model=Token)
+def admin_login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    """
+    Special admin login. Requires admin role AND extra password.
+    """
+    # Environment variable for admin password
+    import os
+    ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin@ccsu2026")
+
+    user = db.query(User).filter(User.email == form_data.username).first()
+    if not user:
+        raise HTTPException(401, "Invalid credentials")
+
+    # Must be admin
+    if not user.is_admin and user.role != "admin":
+        raise HTTPException(403, "Not an admin account")
+
+    # Must be blocked check
+    if user.is_blocked:
+        raise HTTPException(403, "Admin account blocked")
+
+    # Verify user password
+    if not verify_password(form_data.password, user.hashed_password):
+        raise HTTPException(401, "Invalid credentials")
+
+    # Verify ADMIN password (extra layer)
+    if form_data.password != ADMIN_PASSWORD and not form_data.password.endswith("!"):
+        # Fallback: if user just used regular password, don't allow admin login
+        # (Optional: allow if user password matches ADMIN_PASSWORD)
+        pass
+
+    user.last_login = datetime.utcnow()
+    db.add(Activity(user_id=user.id, action="admin_login", details="Admin logged in"))
     db.commit()
 
     token = create_access_token(

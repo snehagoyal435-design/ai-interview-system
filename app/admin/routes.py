@@ -8,8 +8,9 @@ from sqlalchemy import func
 from datetime import datetime
 
 from app.database import get_db
-from app.models import User, Interview, Profile, Activity
+from app.models import User, Interview, Profile, Activity, Question
 from app.auth.utils import get_current_user
+from app.schemas import BlockUserRequest
 
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
@@ -43,12 +44,13 @@ def list_users(
             "full_name": u.full_name,
             "role": u.role,
             "is_admin": u.is_admin,
+            "is_blocked": u.is_blocked,
+            "block_reason": u.block_reason,
             "created_at": u.created_at,
             "last_login": u.last_login,
             "total_interviews": len(interviews),
             "avg_score": avg,
             "total_activities": acts,
-            "has_profile": profile is not None,
             "target_role": profile.target_role if profile else None,
         })
 
@@ -61,6 +63,7 @@ def global_stats(
     db: Session = Depends(get_db),
 ):
     total_users = db.query(User).count()
+    blocked_users = db.query(User).filter(User.is_blocked == True).count()
     total_interviews = db.query(Interview).count()
     completed_interviews = db.query(Interview).filter(Interview.status == "completed").count()
 
@@ -76,6 +79,7 @@ def global_stats(
     return {
         "success": True,
         "total_users": total_users,
+        "blocked_users": blocked_users,
         "total_interviews": total_interviews,
         "completed_interviews": completed_interviews,
         "average_score": avg_score,
@@ -95,7 +99,29 @@ def user_detail(
 
     profile = db.query(Profile).filter(Profile.user_id == user_id).first()
     interviews = db.query(Interview).filter(Interview.user_id == user_id).order_by(Interview.created_at.desc()).all()
-    activities = db.query(Activity).filter(Activity.user_id == user_id).order_by(Activity.timestamp.desc()).limit(50).all()
+    activities = db.query(Activity).filter(Activity.user_id == user_id).order_by(Activity.timestamp.desc()).limit(100).all()
+
+    # Detailed interviews with questions
+    interviews_detail = []
+    for iv in interviews:
+        questions = db.query(Question).filter(Question.interview_id == iv.id).all()
+        interviews_detail.append({
+            "id": iv.id,
+            "job_role": iv.job_role,
+            "status": iv.status,
+            "total_score": iv.total_score,
+            "created_at": iv.created_at.isoformat() if iv.created_at else None,
+            "questions": [
+                {
+                    "id": q.id,
+                    "question": q.question_text,
+                    "answer": q.answer_text,
+                    "score": q.score,
+                    "feedback": q.feedback,
+                }
+                for q in questions
+            ],
+        })
 
     return {
         "success": True,
@@ -105,8 +131,10 @@ def user_detail(
             "full_name": user.full_name,
             "role": user.role,
             "is_admin": user.is_admin,
-            "created_at": user.created_at,
-            "last_login": user.last_login,
+            "is_blocked": user.is_blocked,
+            "block_reason": user.block_reason,
+            "created_at": user.created_at.isoformat() if user.created_at else None,
+            "last_login": user.last_login.isoformat() if user.last_login else None,
         },
         "profile": {
             "status": profile.status,
@@ -116,17 +144,93 @@ def user_detail(
             "skills": profile.skills,
             "bio": profile.bio,
         } if profile else None,
-        "interviews": [
-            {
-                "id": i.id, "job_role": i.job_role, "status": i.status,
-                "total_score": i.total_score, "created_at": i.created_at,
-            } for i in interviews
-        ],
+        "interviews": interviews_detail,
         "activities": [
-            {"action": a.action, "details": a.details, "timestamp": a.timestamp}
+            {
+                "action": a.action,
+                "details": a.details,
+                "timestamp": a.timestamp.isoformat() if a.timestamp else None,
+            }
             for a in activities
         ],
     }
+
+
+@router.post("/user/{user_id}/block", response_model=dict)
+def block_user(
+    user_id: int,
+    data: BlockUserRequest,
+    admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(404, "User not found")
+    if user.id == admin.id:
+        raise HTTPException(400, "Cannot block yourself")
+
+    user.is_blocked = True
+    user.block_reason = data.reason or "Violation of terms"
+    db.commit()
+
+    db.add(Activity(
+        user_id=admin.id,
+        action="block_user",
+        details=f"Blocked user {user.email}: {user.block_reason}"
+    ))
+    db.commit()
+
+    return {"success": True, "message": f"User {user.email} blocked"}
+
+
+@router.post("/user/{user_id}/unblock", response_model=dict)
+def unblock_user(
+    user_id: int,
+    admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(404, "User not found")
+
+    user.is_blocked = False
+    user.block_reason = None
+    db.commit()
+
+    db.add(Activity(
+        user_id=admin.id,
+        action="unblock_user",
+        details=f"Unblocked user {user.email}"
+    ))
+    db.commit()
+
+    return {"success": True, "message": f"User {user.email} unblocked"}
+
+
+@router.delete("/user/{user_id}", response_model=dict)
+def delete_user(
+    user_id: int,
+    admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(404, "User not found")
+    if user.id == admin.id:
+        raise HTTPException(400, "Cannot delete yourself")
+
+    email = user.email
+    db.delete(user)
+    db.commit()
+
+    db.add(Activity(
+        user_id=admin.id,
+        action="delete_user",
+        details=f"Deleted user {email}"
+    ))
+    db.commit()
+
+    return {"success": True, "message": f"User {email} deleted"}
 
 
 @router.post("/make-admin/{user_id}", response_model=dict)
@@ -140,6 +244,7 @@ def make_admin(
         raise HTTPException(404, "User not found")
 
     user.is_admin = True
+    user.role = "admin"
     db.commit()
 
     return {"success": True, "message": f"{user.email} is now admin"}

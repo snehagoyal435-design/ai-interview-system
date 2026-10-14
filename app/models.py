@@ -1,4 +1,3 @@
-
 # ============================================
 # AI Interview System - Database Models
 # ============================================
@@ -18,11 +17,13 @@ class User(Base):
     full_name = Column(String, nullable=True)
     role = Column(String, default="candidate")  # candidate | admin
     is_admin = Column(Boolean, default=False)
+    is_blocked = Column(Boolean, default=False)   # NAYA FIELD
+    block_reason = Column(String, nullable=True)  # NAYA FIELD
     created_at = Column(DateTime, default=datetime.utcnow)
     last_login = Column(DateTime, nullable=True)
 
     profile = relationship("Profile", back_populates="user", uselist=False, cascade="all, delete-orphan")
-    interviews = relationship("Interview", back_populates="user")
+    interviews = relationship("Interview", back_populates="user", cascade="all, delete-orphan")
     activities = relationship("Activity", back_populates="user", cascade="all, delete-orphan")
 
 
@@ -35,7 +36,7 @@ class Profile(Base):
     education = Column(String, nullable=True)
     target_role = Column(String, nullable=True)
     experience_years = Column(Integer, default=0)
-    skills = Column(Text, default="")  # comma-separated
+    skills = Column(Text, default="")
     bio = Column(Text, nullable=True)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -75,8 +76,10 @@ class Activity(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    action = Column(String, nullable=False)  # login, signup, interview_start, resume_upload
+    action = Column(String, nullable=False)
     details = Column(Text, nullable=True)
+    ip_address = Column(String, nullable=True)
+    user_agent = Column(String, nullable=True)
     timestamp = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="activities")
