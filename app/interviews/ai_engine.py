@@ -53,32 +53,34 @@ def generate_questions(
     difficulty: str = "medium"
 ) -> list:
     """
-    Role aur skills ke basis pe interview questions banata hai.
-    Random seed use karta hai taaki har baar naye questions aayen.
+    Generates UNIQUE interview questions every time using random seeds.
     """
     import random
     import uuid
+    import time
 
     skills_str = ", ".join(skills) if skills else "general"
-
-    # Random seed generate karo
-    random_seed = f"{uuid.uuid4().hex[:8]}-{random.randint(1000, 9999)}"
+    
+    # Unique session ID — guarantees different output every time
+    session_id = str(uuid.uuid4())
+    timestamp = str(time.time())
 
     prompt = QUESTION_GENERATION_PROMPT.format(
         num_questions=num_questions,
         job_role=job_role,
         skills=skills_str,
         difficulty=difficulty,
-        random_seed=random_seed,
+        session_id=session_id,
+        timestamp=timestamp,
     )
 
     try:
         response = model.generate_content(
             prompt,
             generation_config={
-                "temperature": 1.2,
-                "top_p": 0.95,
-                "top_k": 40,
+                "temperature": 1.5,       # Max randomness
+                "top_p": 0.98,
+                "top_k": 50,
                 "candidate_count": 1,
             },
         )
@@ -86,26 +88,26 @@ def generate_questions(
         questions = json.loads(cleaned)
 
         if not isinstance(questions, list):
-            raise ValueError("AI ne list return nahi ki")
+            raise ValueError("AI did not return a list")
 
-        # Deduplicate
+        # Deduplicate within batch
         seen = set()
-        unique_questions = []
+        unique = []
         for q in questions:
             q_norm = q.strip().lower()
             if q_norm not in seen:
                 seen.add(q_norm)
-                unique_questions.append(q.strip())
+                unique.append(q.strip())
 
-        return unique_questions[:num_questions]
+        return unique[:num_questions]
 
     except json.JSONDecodeError as e:
-        print(f"[ai_engine] JSON decode error: {e}")
-        print(f"[ai_engine] Raw response: {response.text[:200]}")
-        return [f"Tell me about your experience with {job_role}."]
+        print(f"[ai_engine] JSON error: {e}")
+        print(f"[ai_engine] Raw: {response.text[:200]}")
+        return [f"Explain a challenging {job_role} project you worked on."]
     except Exception as e:
         print(f"[ai_engine] Error: {e}")
-        return [f"Explain a challenging project you worked on."]
+        return [f"Describe your experience with {job_role}."]
 
 
 

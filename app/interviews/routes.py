@@ -284,3 +284,94 @@ def list_my_interviews(
             for i in interviews
         ],
     }
+# ============================================
+# 8. ADD MORE QUESTIONS (Practice Mode)
+# ============================================
+
+@router.post("/{interview_id}/add-questions", response_model=dict)
+def add_more_questions(
+    interview_id: int,
+    count: int = 5,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Add more questions to existing interview for practice."""
+    interview = db.query(Interview).filter(Interview.id == interview_id).first()
+    if not interview:
+        raise HTTPException(404, "Interview not found")
+    if interview.user_id != current_user.id:
+        raise HTTPException(403, "Not authorized")
+    
+    # Profile skills
+    profile = db.query(Profile).filter(Profile.user_id == current_user.id).first()
+    skills = []
+    if profile and profile.skills:
+        skills = [s.strip() for s in profile.skills.split(",") if s.strip()]
+    
+    # Existing questions
+    existing = db.query(Question).filter(Question.interview_id == interview_id).all()
+    existing_texts = [q.question_text.strip().lower() for q in existing]
+    
+    # Generate new questions (with retry for uniqueness)
+    added = 0
+    max_attempts = 3
+    
+    for attempt in range(max_attempts):
+        try:
+            new_list = generate_questions(
+                job_role=interview.job_role,
+                skills=skills,
+                num_questions=count,
+                difficulty="medium",
+            )
+        except Exception as e:
+            raise HTTPException(500, f"Generation failed: {str(e)}")
+        
+        for q_text in new_list:
+            q_norm = q_text.strip().lower()
+            if q_norm not in existing_texts:
+                q = Question(interview_id=interview_id, question_text=q_text)
+                db.add(q)
+                existing_texts.append(q_norm)
+                added += 1
+            
+            if added >= count:
+                break
+        
+        if added >= count:
+            break
+    
+    # If still no unique questions, add whatever we have
+    if added == 0:
+        for q_text in new_list[:count]:
+            q = Question(interview_id=interview_id, question_text=q_text)
+            db.add(q)
+            added += 1
+    
+    db.commit()
+    
+    # Log
+    db.add(Activity(
+        user_id=current_user.id,
+        action="practice_mode",
+        details=f"Added {added} more questions"
+    ))
+    db.commit()
+    
+    # Return all questions
+    all_q = db.query(Question).filter(Question.interview_id == interview_id).all()
+    
+    return {
+        "success": True,
+        "added_count": added,
+        "total_questions": len(all_q),
+        "questions": [
+            {
+                "id": q.id,
+                "question_text": q.question_text,
+                "answer_text": q.answer_text,
+                "score": q.score,
+            }
+            for q in all_q
+        ],
+    }

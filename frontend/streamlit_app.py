@@ -1102,34 +1102,89 @@ def show_start_interview():
             st.markdown('</div>', unsafe_allow_html=True)
 
         else:
+            # Sab questions ho gaye
+            total_answered = len([q for q in questions if q.get("answer_text")])
+            
             st.balloons()
-            st.markdown("""
+            
+            st.markdown(f"""
             <div class="hero">
-                <div class="hero-title" style="font-size: 2.3em;">Interview Complete!</div>
-                <div class="hero-subtitle">Great job! Let's finalize your results.</div>
+                <div class="hero-banner" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.4) 0%, rgba(5, 150, 105, 0.4) 100%); 
+                                              padding: 40px; border-radius: 20px; text-align: center; color: white; margin-bottom: 30px;">
+                    <div style="font-size: 4em;">🎉</div>
+                    <div style="font-size: 2.2em; font-weight: 900; margin: 10px 0;">Round Complete!</div>
+                    <div style="font-size: 1.1em; opacity: 0.9;">You answered {total_answered} questions</div>
+                </div>
             </div>
             """, unsafe_allow_html=True)
-
-            c1, c2 = st.columns(2)
+            
+            st.markdown("### 🎯 What would you like to do?")
+            
+            c1, c2, c3 = st.columns(3)
+            
             with c1:
-                if st.button("Finish & View Results", use_container_width=True, key="finish_btn"):
-                    with st.spinner("Finalizing your interview..."):
-                        r = api_call("POST", f"/interviews/{interview['interview_id']}/complete")
-
-                    # Fix: check for actual error value, not just key existence
+                st.markdown("""
+                <div class="feature-card" style="padding: 20px;">
+                    <div class="feature-icon">➕</div>
+                    <div class="feature-title">Practice More</div>
+                    <div class="feature-desc">Add 5 new questions to keep practicing</div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                if st.button("➕ Add 5 More Questions", use_container_width=True, key="more_q_btn"):
+                    with st.spinner("🤖 AI is generating 5 new questions..."):
+                        r = api_call(
+                            "POST",
+                            f"/interviews/{interview['interview_id']}/add-questions?count=5"
+                        )
+                    
+                    if isinstance(r, dict) and r.get("error"):
+                        st.error(f"Error: {r['error']}")
+                    else:
+                        # Update session state
+                        st.session_state.interview["questions"] = r.get("questions", [])
+                        st.session_state.current_q = total_answered
+                        st.success(f"✅ Added {r.get('added_count', 5)} new questions!")
+                        time.sleep(1)
+                        st.rerun()
+            
+            with c2:
+                st.markdown("""
+                <div class="feature-card" style="padding: 20px;">
+                    <div class="feature-icon">📊</div>
+                    <div class="feature-title">Finish</div>
+                    <div class="feature-desc">Complete interview and view results</div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                if st.button("📊 Finish & View Results", use_container_width=True, key="finish_btn_final"):
+                    with st.spinner("Finalizing..."):
+                        r = api_call(
+                            "POST",
+                            f"/interviews/{interview['interview_id']}/complete"
+                        )
+                    
                     if isinstance(r, dict) and r.get("error"):
                         st.error(f"Error: {r['error']}")
                     else:
                         final_score = r.get("final_score", 0) if isinstance(r, dict) else 0
-                        st.success(f"Final Score: {final_score}/10")
+                        st.success(f"✅ Final Score: {final_score}/10")
                         st.session_state.interview = None
                         st.session_state.current_q = 0
                         st.session_state.page = "History"
                         time.sleep(1.5)
                         st.rerun()
-
-            with c2:
-                if st.button("New Interview", use_container_width=True, key="new_btn"):
+            
+            with c3:
+                st.markdown("""
+                <div class="feature-card" style="padding: 20px;">
+                    <div class="feature-icon">🔄</div>
+                    <div class="feature-title">New Interview</div>
+                    <div class="feature-desc">Start a fresh interview</div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                if st.button("🔄 New Interview", use_container_width=True, key="new_int_btn_final"):
                     st.session_state.interview = None
                     st.session_state.current_q = 0
                     st.rerun()
