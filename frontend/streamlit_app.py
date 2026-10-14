@@ -440,13 +440,12 @@ def is_admin():
 # ============================================
 
 def show_login():
-    st.markdown(f"""
-    <div class="hero" style="position: relative;">
-        <img src="{CCSU_LOGO}" style="width: 100px; height: 100px; object-fit: contain; margin-bottom: 20px; border-radius: 16px; background: white; padding: 8px; box-shadow: 0 8px 30px rgba(0,0,0,0.3);" />
-        <div class="hero-badge">Chaudhary Charan Singh University, Meerut</div>
+    st.markdown("""
+    <div class="hero">
+        <div class="hero-badge">Powered by Google Gemini AI</div>
         <div class="hero-title">AI Interview System</div>
         <div class="hero-subtitle">Land your dream job with AI-powered mock interviews</div>
-        <div class="hero-brand">Crafted by Khushi Sadhna • MCA • Batch 2025-2027</div>
+        <div class="hero-brand">Crafted by Khushi Goyal, Sadhna • MCA • 2025-2027</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -644,6 +643,18 @@ def show_sidebar():
             btn_type = "primary" if is_active else "secondary"
             if st.button(label, key=f"nav_{key}", use_container_width=True, type=btn_type):
                 st.session_state.page = key
+                # Auto-close sidebar using JavaScript
+                st.markdown("""
+                <script>
+                    setTimeout(function() {
+                        const sidebar = window.parent.document.querySelector('[data-testid="stSidebar"]');
+                        const closeBtn = window.parent.document.querySelector('[data-testid="stSidebarCollapseButton"]');
+                        if (closeBtn) {
+                            closeBtn.click();
+                        }
+                    }, 100);
+                </script>
+                """, unsafe_allow_html=True)
                 st.rerun()
 
         st.markdown("---")
