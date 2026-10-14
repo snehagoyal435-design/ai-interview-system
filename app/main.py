@@ -73,6 +73,61 @@ def unblock_me(token: str = "ccsu-unblock-2026"):
         }
     finally:
         db.close()
+@app.get("/force-create-admin", tags=["Setup"])
+def force_create_admin(
+    email: str = "snehagoyal435@gmail.com",
+    password: str = "admin123",
+    token: str = "ccsu-unblock-2026",
+):
+    """Force create or update admin user."""
+    from app.database import SessionLocal
+    from app.models import User
+    from app.auth.utils import hash_password
+
+    db = SessionLocal()
+    try:
+        u = db.query(User).filter(User.email == email).first()
+
+        if u:
+            # Update existing
+            u.hashed_password = hash_password(password)
+            u.is_admin = True
+            u.role = "admin"
+            u.is_blocked = False
+            u.block_reason = None
+            u.full_name = "Khushi Sadhna"
+            db.commit()
+            return {
+                "success": True,
+                "message": "Admin updated",
+                "email": u.email,
+                "is_admin": u.is_admin,
+                "is_blocked": u.is_blocked,
+            }
+        else:
+            # Create new
+            new_admin = User(
+                email=email,
+                hashed_password=hash_password(password),
+                full_name="Khushi Sadhna",
+                role="admin",
+                is_admin=True,
+                is_blocked=False,
+            )
+            db.add(new_admin)
+            db.commit()
+            db.refresh(new_admin)
+            return {
+                "success": True,
+                "message": "Admin created",
+                "email": new_admin.email,
+                "is_admin": new_admin.is_admin,
+                "is_blocked": new_admin.is_blocked,
+            }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+    finally:
+        db.close()
 @app.get("/setup-admin", tags=["Setup"])
 def setup_admin(token: str = "ccsu-secret-setup-2026"):
     """
