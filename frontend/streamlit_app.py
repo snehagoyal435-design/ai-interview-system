@@ -5,6 +5,14 @@
 
 import streamlit as st
 import requests
+def safe_json(response):
+    """Safely parse JSON. If fails, return error dict."""
+    try:
+        return response.json()
+    except Exception:
+        if response.status_code == 502 or response.status_code == 503:
+            return {"detail": "Server is starting up. Please wait 30 seconds and try again."}
+        return {"detail": f"Server error (HTTP {response.status_code}). Please try again."}
 import time
 import plotly.graph_objects as go
 import pandas as pd
@@ -514,7 +522,7 @@ def show_login():
                     elif r.status_code == 403:
                         st.error(f"🚫 Account blocked: {r.json().get('detail', 'Contact admin')}")
                     else:
-                        st.error(f"Login failed: {r.json().get('detail', 'Try again')}")
+                        st.error(f"Login failed: {safe_json(r).get('detail', 'Try again')}")
                 else:
                     st.warning("Please enter email and password")
 
@@ -539,7 +547,7 @@ def show_login():
                     if r.status_code == 201:
                         st.success("Account created! Please log in.")
                     else:
-                        st.error(f"Signup failed: {r.json().get('detail', 'Try again')}")
+                        st.error(f"Signup failed: {safe_json(r).get('detail', 'Try again')}")
                 else:
                     st.warning("Fill all fields (password 6+ characters)")
 
@@ -586,7 +594,7 @@ def show_login():
                     elif r.status_code == 403:
                         st.error("🚫 Account is blocked")
                     else:
-                        st.error(f"Invalid admin credentials: {r.json().get('detail', 'Try again')}")
+                        st.error(f"Invalid admin credentials: {safe_json(r).get('detail', 'Try again')}")
 
         st.markdown('</div>', unsafe_allow_html=True)
 
